@@ -2,7 +2,7 @@
     "name": "backend",
     "version": "0.0.1",
     "scripts": {
-        "start": "nodemon ./backend/index.js"
+        "start": "nodemon ./backend/backend.js"
     },
     "devDependencies": {
         "nodemon": "2.0.20"
