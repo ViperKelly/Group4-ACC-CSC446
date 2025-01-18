@@ -41,42 +41,55 @@ app.get("/query", function (request, response) {
 })
 
 app.post("/login", function (req, res) {
-  let inUName = req.body.username;
-  let inPass = req.body.password;
+  const { username, password } = req.body;
 
-  SQL = "SELECT * FROM users WHERE username=?";
-  connection.query(SQL, [inUName], (error, results, fields) => {
+  if (!username || !password) {
+    return res.status(400).send("Username and password are required");
+  }
+
+  const SQL = "SELECT * FROM users WHERE username=?";
+  connection.query(SQL, [username], (error, results) => {
     if (error) {
       console.error(error.message);
-      response.status(500).send("database error");
-    } else {
-      let testPass = results[0][salt]+inPass+PEPPER;
-      let passMatched = bcrypt.compare(testPass, results[0][password]);
-      if (passMatched) {
-        response.status(200).send("Success");
-      } else {
-        response.status(401).send("User not authorized.");
-      }
+      return res.status(500).send("Database error");
     }
-  })
+
+    if (results.length === 0) {
+      return res.status(404).send("User not found");
+    }
+
+    const user = results[0];
+    const testPass = user.salt + password + PEPPER;
+    const passMatched = bcrypt.compareSync(testPass, user.password);
+
+    if (passMatched) {
+      res.status(200).send("Success");
+    } else {
+      res.status(401).send("User not authorized");
+    }
+  });
 })
+
 
 app.post("/totp2", function (req, res) {
   const date = new Date();
 
-  let inToken = req.body.tokenInput;
-  let timestamp = toString(Math.round(date.getTime / 60000) * 60000);
+  const inToken = req.body.tokenInput;
+  const timestamp = Math.floor(date.getTime() / 30000); // Rounds to nearest 30 seconds
 
-  let hashedStr = TOTP2SECRET + timestamp;
+  // Generate the hashed TOTP token
+  let hashedStr = TOTP2SECRET + timestamp.toString();
   hashedStr = crypto.createHash('sha256').update(hashedStr).digest('hex');
-  hashedStr = hashedStr.slice(0, 6);
+  const generatedToken = hashedStr.replace(/\D/g, "").slice(0, 6);
 
-  if (inToken == hashedStr) {
-    response.status(200).send("Success");
+  // Validate the input token
+  if (inToken === generatedToken) {
+    res.status(200).send("Success");
   } else {
-    response.status(401).send("Token is invalid.");
+    res.status(401).send("Token is invalid.");
   }
 })
+
 
 
 app.listen(PORT, HOST);

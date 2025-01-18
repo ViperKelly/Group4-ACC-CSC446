@@ -41,26 +41,34 @@ async function login() {
 }
 
 async function totpSubmit() {
-    const tokenInput = document.getElementById("totpToken").value;
+    const tokenInput = document.getElementById("totpToken").value.trim();
 
-    try{
+    if (!tokenInput) {
+        alert("Please enter the TOTP token.");
+        return;
+    }
+
+    try {
         const response = await fetch("/totp2", {
-            method: "POST",
-            headers: {" Content-Type": "application/json" },
-            body: JSON.stringify({tokenInput})
-        })
-        .then(res => res.json)
-        .then(data => {
-            if (data = "Success") {
-                window.location.href = "query.html";
-            } else {
-                console.log(data);
-            }
-        })
-        .catch(err => {
-            console.log(err);
+        method: "POST",
+        headers: { "Content-Type": "application/json" }, // Fixed the space issue
+        body: JSON.stringify({ tokenInput }),
         });
+
+        if (response.ok) {
+        const data = await response.text(); // Parse response as plain text
+        if (data === "Success") {
+          window.location.href = "query.html"; // Redirect on success
+        } else {
+            alert("Invalid token: " + data);
+        }
+        } else {
+        const errorText = await response.text();
+        console.error("Server error:", errorText);
+        alert("Server error: " + errorText);
+        }
     } catch (error) {
-        console.log(error);
+        console.error("Error:", error);
+        alert("An error occurred. Please try again.");
     }
 }
