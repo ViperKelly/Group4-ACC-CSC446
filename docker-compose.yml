@@ -11,7 +11,7 @@ services:
     restart: always
     environment:
       - HOST=0.0.0.0
-      - PORT=5000
+      - PORT=80
       - MYSQLHOST=mysql
       - MYSQLUSER=root
       - MYSQLPASS=example
@@ -19,4 +19,4 @@ services:
       - ./server/backend:/app/backend
       - ./server/frontend:/app/frontend
     ports:
-      - "9000:5000"
+      - "80:80"
