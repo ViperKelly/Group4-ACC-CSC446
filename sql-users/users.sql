@@ -31,3 +31,15 @@ VALUES(
 );
 
 UPDATE users SET role = 'admin' WHERE username = 'user';
+
+-- First, enable the UUID extension (if not already enabled)
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- Create the logs table
+CREATE TABLE logs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),  -- Unique ID using UUID v4
+    username VARCHAR(255) NOT NULL,                   -- Who (username)
+    log_time TIMESTAMPTZ NOT NULL DEFAULT now(),       -- When (human readable datetime)
+    data_access VARCHAR(255) NOT NULL,                -- What (type of data attempted to access)
+    success BOOLEAN NOT NULL                          -- Success (true if the action succeeded)
+);

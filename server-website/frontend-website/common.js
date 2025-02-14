@@ -137,3 +137,27 @@ function totpSubmit() {
     })
     .catch(err => console.log(err));
 }
+
+function register() {
+    const username = document.getElementById('regUsername').value;
+    const password = document.getElementById('regPassword').value;
+    const email = document.getElementById('regEmail').value;
+
+    fetch('/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password, email })
+    })
+    .then(response => {
+        if(response.ok) {
+            alert('Registration successful');
+            window.location.href = 'index.html';
+        } else {
+            alert('Registration failed');
+        }
+    })
+    .catch(error => {
+        console.error('Error during registration:', error);
+        alert('An error occurred. Please try again.');
+    });
+}
