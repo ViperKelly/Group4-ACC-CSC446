@@ -1,0 +1,52 @@
+version: '3'
+services:
+  #User database
+  mysql-users:
+    image: mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=example
+    volumes:
+      - ./sql-users:/docker-entrypoint-initdb.d/:ro
+  #User management API: Contains only a backend api
+  server-users:
+    build: ./server-users
+    environment:
+      - HOST=0.0.0.0
+      - PORT=3000
+      - MYSQLHOST=mysql-users
+      - MYSQLUSER=root
+      - MYSQLPASS=example
+      - PEPPER=aae2
+      - TOTP2SECRET=hashpartfront
+      - JWTSECRET=secretstring
+    volumes:
+      - ./server-users/backend-users:/app/backend-users
+    ports:
+      - "3000:3000"
+    #command: ["node", "/app/backend-users/index.js"]
+  #Other database
+  mysql-data:
+    image: mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=example
+    volumes:
+      - ./sql-data:/docker-entrypoint-initdb.d/:ro
+  #Website API: Contains a frontend and backend
+  server-website:
+    build: ./server-website
+    environment:
+      - HOST=0.0.0.0
+      - PORT=9000
+      - MYSQLHOST=mysql-data
+      - MYSQLUSER=root
+      - MYSQLPASS=example
+      - PEPPER=aae2
+      - TOTP2SECRET=hashpartfront
+      - JWTSECRET=secretstring
+    volumes:
+      - ./server-website/backend-website:/app/backend-website
+      - ./server-website/frontend-website:/app/frontend-website
+    ports:
+      - "9000:9000"
+    #command: ["node", "/app/backend-website/index.js"]
+    
