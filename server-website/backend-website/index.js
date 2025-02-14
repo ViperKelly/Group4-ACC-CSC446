@@ -19,6 +19,7 @@ const app = express();
 app.use(express.json());
 app.use(cors({ origin: "http://localhost:3000" }));
 
+// Create the connection to the data database
 let connection = mysql.createConnection({
   host: MYSQLHOST,
   user: MYSQLUSER,
@@ -41,28 +42,30 @@ function validateAndParseToken(token) {
 // Routes
 app.use("/", express.static("frontend-website"));
 
-app.post("/queryUsers", async function (req, res) {
+// query Users Route Handler
+app.post("/queryUsers", function (req, res) {
   const token = req.body.token;
-    jwt.verify(token, JWTSECRET, (err, decoded) => {
-        if (err) {
-            return res.status(403).send({ response: "Invalid token" });
-        }
+  jwt.verify(token, JWTSECRET, (err, decoded) => {
+      if (err) {
+          return res.status(403).send({ response: "Invalid token" });
+      }
 
-        // Check if the user has the admin role
-        if (decoded.role !== "admin" && decoded.role !== "user") {
-            return res.status(403).send({ response: "Not Authorized" });
-        }
+      // Only admin is allowed for querying user activities
+      if (decoded.role !== "admin") {
+          return res.status(403).send({ response: "Not Authorized" });
+      }
 
-        const SQL = "SELECT * FROM user_activities";
-        connection.query(SQL, (error, results) => {
-            if (error) {
-                return res.status(500).send({ response: "Database error" });
-            }
-            res.send({ response: results });
-        });
-    });
+      const SQL = "SELECT * FROM user_activities";
+      connection.query(SQL, (error, results) => {
+          if (error) {
+              return res.status(500).send({ response: "Database error" });
+          }
+          res.send({ response: results });
+      });
+  });
 });
 
+// make sure user has a valid token
 app.post("/validateToken", function (req, res) {
   const token = req.headers.authorization?.split(" ")[1];
   const decoded = validateAndParseToken(token);
@@ -79,26 +82,27 @@ app.post("/validateToken", function (req, res) {
   }
 });
 
-app.post("/queryAdminData", function (req, res) {
-    const token = req.body.token;
-    jwt.verify(token, JWTSECRET, (err, decoded) => {
-        if (err) {
-            return res.status(403).send({ response: "Invalid token" });
-        }
+// Query Data
+app.post("/queryData", function (req, res) {
+  const token = req.body.token;
+  jwt.verify(token, JWTSECRET, (err, decoded) => {
+      if (err) {
+          return res.status(403).send({ response: "Invalid token" });
+      }
 
-        // Check if the user has the admin role
-        if (decoded.role !== "admin") {
-            return res.status(403).send({ response: "Not Authorized" });
-        }
+      // Allow both 'admin' and 'user' roles
+      if (decoded.role !== "admin" && decoded.role !== "user") {
+          return res.status(403).send({ response: "Not Authorized" });
+      }
 
-        const SQL = "SELECT * FROM admin_data";
-        connection.query(SQL, (error, results) => {
-            if (error) {
-                return res.status(500).send({ response: "Database error" });
-            }
-            res.send({ response: results });
-        });
-    });
+      const SQL = "SELECT * FROM admin_data";
+      connection.query(SQL, (error, results) => {
+          if (error) {
+              return res.status(500).send({ response: "Database error" });
+          }
+          res.send({ response: results });
+      });
+  });
 });
 
 app.listen(PORT, HOST, () => {

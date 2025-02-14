@@ -1,181 +1,21 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Security Logs Dashboard</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background-color: #f7f7f7;
-      margin: 0;
-      padding: 20px;
-      color: #333;
-    }
-    header {
-      text-align: center;
-      margin-bottom: 20px;
-    }
-    header h1 {
-      margin-bottom: 5px;
-    }
-    .summary, .chart, .logsTable {
-      background-color: #fff;
-      border-radius: 5px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-      padding: 20px;
-      margin-bottom: 20px;
-    }
-    .summary ul {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-    }
-    .summary li {
-      margin: 10px 0;
-      font-size: 1.1em;
-    }
-    .chart {
-      display: flex;
-      justify-content: space-around;
-      align-items: center;
-      text-align: center;
-    }
-    .chart div {
-      flex: 1;
-      padding: 10px;
-    }
-    .chart .bar {
-      height: 20px;
-      background-color: #4caf50;
-      margin-top: 5px;
-      border-radius: 3px;
-    }
-    .chart .bar.failure {
-      background-color: #f44336;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 10px;
-    }
-    th, td {
-      padding: 12px 8px;
-      border: 1px solid #ddd;
-      text-align: left;
-    }
-    th {
-      background-color: #f0f0f0;
-    }
-    .message {
-      text-align: center;
-      font-size: 1.2em;
-    }
-  </style>
-</head>
-<body>
-  <header>
-    <h1>Security Logs Dashboard</h1>
-    <p>Monitor system access and data retrieval attempts to quickly identify suspicious activity.</p>
-  </header>
-  
-  <section class="summary">
-    <h2>Summary</h2>
-    <ul>
-      <li>Total Log Entries: <span id="totalLogs">0</span></li>
-      <li>Successful Actions: <span id="successCount">0</span></li>
-      <li>Failed Actions: <span id="failureCount">0</span></li>
-    </ul>
-  </section>
-  
-  <section class="chart">
-    <div>
-      <h3>Success</h3>
-      <p id="successPercentage">0%</p>
-      <div class="bar" id="successBar" style="width: 0%;"></div>
-    </div>
-    <div>
-      <h3>Failure</h3>
-      <p id="failurePercentage">0%</p>
-      <div class="bar failure" id="failureBar" style="width: 0%;"></div>
-    </div>
-  </section>
-  
-  <section class="logsTable">
-    <h2>Detailed Log Entries</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Username</th>
-          <th>Time</th>
-          <th>Action</th>
-          <th>Success</th>
-        </tr>
-      </thead>
-      <tbody id="logsBody">
-        <!-- Log rows will be inserted here -->
-      </tbody>
-    </table>
-  </section>
-  
-  <div class="message" id="loadingMessage">Loading logs...</div>
-  <div class="message" id="errorMessage" style="display: none;">Error fetching logs.</div>
-  
-  <script>
-    // Retrieve token from localStorage (assumes the token is saved after login)
-    const token = localStorage.getItem("token");
-    const headers = token ? { "Authorization": "Bearer " + token } : {};
 
-    fetch("/logs", { headers })
-      .then(response => {
-        if (!response.ok) {
-          throw new Error("Unauthorized or error fetching logs.");
-        }
-        return response.json();
-      })
-      .then(data => {
-        document.getElementById("loadingMessage").style.display = "none";
-        const logs = data;
-        const totalLogs = logs.length;
-        let successCount = 0;
-        let failureCount = 0;
-        let rowsHTML = "";
-        
-        logs.forEach(log => {
-          if (log.success) {
-            successCount++;
-          } else {
-            failureCount++;
-          }
-          rowsHTML += `<tr>
-            <td>${log.id}</td>
-            <td>${log.username}</td>
-            <td>${new Date(log.log_time).toLocaleString()}</td>
-            <td>${log.data_access}</td>
-            <td>${log.success ? "Yes" : "No"}</td>
-          </tr>`;
-        });
-        
-        // Update table
-        document.getElementById("logsBody").innerHTML = rowsHTML;
-        // Update summary counts
-        document.getElementById("totalLogs").textContent = totalLogs;
-        document.getElementById("successCount").textContent = successCount;
-        document.getElementById("failureCount").textContent = failureCount;
-        
-        // Calculate percentages for the chart
-        const successPercentage = totalLogs > 0 ? ((successCount / totalLogs) * 100).toFixed(2) : 0;
-        const failurePercentage = totalLogs > 0 ? ((failureCount / totalLogs) * 100).toFixed(2) : 0;
-        document.getElementById("successPercentage").textContent = successPercentage + "%";
-        document.getElementById("failurePercentage").textContent = failurePercentage + "%";
-        document.getElementById("successBar").style.width = successPercentage + "%";
-        document.getElementById("failureBar").style.width = failurePercentage + "%";
-      })
-      .catch(error => {
-        document.getElementById("loadingMessage").style.display = "none";
-        document.getElementById("errorMessage").style.display = "block";
-        console.error("Error fetching logs:", error);
-      });
-  </script>
-</body>
+<html>
+    <link rel="shortcut icon" type="image/x-icon" href="favicon.png">
+	<link type="text/css" rel="stylesheet" href="logs.css">
+	<script type="text/javascript" src="common.js"></script>
+    
+    <head>
+        <title>
+            Access Control Project
+        </title>
+    </head>
+
+    <body>
+        <div class="content">
+            <button onclick="queryLogs()">Get Logs</button>
+            <p></p>
+            <textarea id="queriedLogs" rows="20" cols="45" placeholder="Database Results"></textarea>
+		</div>
+    </body>
 </html>

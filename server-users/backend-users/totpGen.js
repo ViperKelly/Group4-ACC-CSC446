@@ -1,3 +1,5 @@
+// Creates the TOTP Token for the user
+
 const crypto = require("crypto");
 
 const TOTP2SECRET = "hashpartfront";

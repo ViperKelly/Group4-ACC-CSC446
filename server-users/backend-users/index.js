@@ -1,3 +1,5 @@
+
+// PACKAGES
 const express = require("express");
 const mysql = require("mysql2");
 const bcrypt = require("bcrypt");
@@ -6,7 +8,7 @@ const jwt = require("jsonwebtoken");
 const cors = require("cors");
 const { v4: uuidv4 } = require('uuid');
 
-
+// VARIABLES
 const PORT = String(process.env.PORT);
 const HOST = String(process.env.HOST);
 const MYSQLHOST = String(process.env.MYSQLHOST);
@@ -17,13 +19,14 @@ const PEPPER = String(process.env.PEPPER);
 const TOTP2SECRET = String(process.env.TOTP2SECRET);
 const SQL = "SELECT * FROM users;"
 
+// Establish the app and enable requests
 const app = express();
 app.use(express.json());
 app.use(cors());
 
 let userToken = "";
 
-
+// Users database connection
 let connection = mysql.createConnection({
   host: MYSQLHOST,
   user: MYSQLUSER,
@@ -31,55 +34,67 @@ let connection = mysql.createConnection({
   database: "users"
 });
 
-
+// Login route handler
 app.post("/login", function (req, res) {
-    let inUName = req.body.username.trim();
-    let inPass = req.body.password;
 
-    let mySQL = "SELECT * FROM users WHERE username = ?;";
-    connection.query(mySQL, [inUName], async (error, results) => {
-        if (error) {
-            return res.status(500).send("Database error");
-        }
+  // variables containing the information a user provided
+  let inUName = req.body.username.trim();
+  let inPass = req.body.password;
 
-        if (results.length === 0) {
-            return res.status(404).send({ response: "User not found." });
-        }
+  // First, check for the user in the database
+  let mySQL = "SELECT * FROM users WHERE username = ?;";
+  connection.query(mySQL, [inUName], async (error, results) => {
+    if (error) {
+      return res.status(500).send({ response: "Database error" });
+    }
+    if (results.length === 0) {
+      return res.status(404).send({ response: "User not found." });
+    }
 
-        let testPass = await results[0]['salt'] + inPass + PEPPER;
-        let passMatched = await bcrypt.compare(testPass, results[0]['password']);
-        
-        if (passMatched) {
-            // Include role in the JWT token
-            const userData = {
-                username: inUName,
-                role: results[0].role  // Add role to the JWT payload
-            };
-
-            const token = jwt.sign(userData, JWTSECRET, { expiresIn: '1h' });
-            return res.send({ response: "Success", token: token });
-        } else {
-            return res.send({ response: "Invalid credentials" });
-        }
-    });
+    // Verify Password
+    let testPass = results[0]['salt'] + inPass + PEPPER;
+    let passMatched = await bcrypt.compare(testPass, results[0]['password']);
+    
+    if (!passMatched) {
+      return res.status(401).send({ response: "Invalid credentials" });
+    }
+    
+    const userData = {
+      username: inUName,
+      role: results[0].role
+    };
+    // Once verified create a cookie token to keep them logged in and store what role they are
+    const token = jwt.sign(userData, JWTSECRET, { expiresIn: "1h" });
+    
+    res.send({ response: "Success", token: token });
+  });
 });
 
+// TOTP Token Route Handler
 app.post("/totp", function (req, res) {
+
+  // User given token
   let inUName = req.body.username.trim();
 
-    // Query the database for the user's role (if not already available in the frontend)
+    // Query the database for the user's role 
     let mySQL = "SELECT role FROM users WHERE username = ?;";
     connection.query(mySQL, [inUName], (error, results) => {
         if (error || results.length === 0) {
             return res.status(500).send({ response: "Database error or user not found." });
         }
 
+        // Check if the provided phrase is exactly "race"
+      if (req.body.phrase !== "race") {
+        return res.send({ response: "Invalid something provided." });
+    }
+        // Create the check Token
         const date = new Date();
         let timestamp = Math.round(date.getTime() / 60000) * 60000;
         let hashedStr = TOTP2SECRET + timestamp;
         hashedStr = crypto.createHash('sha256').update(hashedStr).digest('hex');
         hashedStr = hashedStr.slice(0, 6);
 
+        // Same as login have a token for the user that states their role
         if (req.body.tokenInput === hashedStr) {
             // Include role in the JWT token
             const userData = {
@@ -95,6 +110,7 @@ app.post("/totp", function (req, res) {
     });
 });
 
+// Validate the user's token
 app.post("/validateToken", function (req, res) {
   const token = req.body.token;
   jwt.verify(token, JWTSECRET, (err, decoded) => {
@@ -106,65 +122,54 @@ app.post("/validateToken", function (req, res) {
   });
 });
 
-// Middleware to require Admin access using JWT token
-function requireAdmin(req, res, next) {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) {
-      return res.status(401).json({ error: "Missing authorization header" });
-    }
-    const token = authHeader.split(" ")[1];
-    if (!token) {
-      return res.status(401).json({ error: "Invalid token format" });
-    }
-    jwt.verify(token, JWTSECRET, (err, decoded) => {
-      if (err) {
-        return res.status(401).json({ error: "Invalid token" });
-      }
-      if (decoded.role !== "Admin") {
-        return res.status(403).json({ error: "Access Denied: Admins only" });
-      }
-      req.user = decoded;
-      next();
-    });
-  }
-  
-  // Route to insert logs
-  app.post("/logs", (req, res) => {
-    const { who, when, what, success } = req.body;
-    const id = uuidv4();
-    const insertQuery = "INSERT INTO logs (id, username, log_time, data_access, success) VALUES (?, ?, ?, ?, ?)";
-    connection.query(insertQuery, [id, who, when, what, success], (err, results) => {
-      if (err) {
-        console.error("Error inserting log:", err);
-        return res.status(500).json({ error: "Failed to insert log" });
-      }
-      res.status(201).json({ id, who, when, what, success });
-    });
-  });
-  
-  // Route to retrieve logs (Admin only) with logging of access
-  app.get("/logs", requireAdmin, (req, res) => {
-    const idLog = uuidv4();
-    const insertLogQuery = "INSERT INTO logs (id, username, log_time, data_access, success) VALUES (?, ?, NOW(), ?, ?)";
-    connection.query(insertLogQuery, [idLog, req.user.username, "access_logs_route", true], (err, result) => {
-      if (err) {
-        console.error("Error logging logs access:", err);
-        // Proceed to retrieve logs even if logging fails
-      }
-      connection.query("SELECT * FROM logs ORDER BY log_time DESC", (err, rows) => {
-        if (err) {
-          console.error("Error retrieving logs:", err);
-          return res.status(500).json({ error: "Failed to retrieve logs" });
-        }
-        res.json(rows);
-      });
-    });
-  });
+// Log Route Handler
+app.post("/log", (req, res) => {
+  // Extract log information from the request body
+  const user = req.body.user;
+  const timestamp = req.body.timestamp;
+  const description = req.body.description;
+  const success = req.body.success;
 
+  // Create a uuid using uuidv4
+  const uuid = uuidv4();
+
+  // Insert the log entry into the logs table
+  const query = "INSERT INTO logs VALUES(?, ?, ?, ?, ?)";
+  connection.query(query, [uuid, user, timestamp, description, success], (error, results, fields) => {
+      if (error) {
+          console.error("Unexpected Logging Error: ", error.message);
+          res.status(500).send("Server Error");
+      } else {
+          res.status(200).json("Success");
+      }
+  });
+});
+
+// Query the Logs Route Handler
+app.post("/queryLogs", function (req, res) {
+  const userRole = req.body.userRole;
+  const allowedRoles = ['admin'];
+
+  if (allowedRoles.includes(userRole)) {
+      const query = "SELECT * FROM logs";
+      connection.query(query, (error, results, fields) => {
+          if (error) {
+              return res.status(500).send("Database error");
+          } else {
+              return res.status(200).json(results);
+          }
+      });
+  } else {
+      return res.status(401).send("Access Denied");
+  }
+});
+
+// Register Route Handler
 app.post("/register", (req, res) => {
+  // Take in the information the user provided
     const { username, password, email } = req.body;
   
-    // First, check if the username already exists
+    // Check if User already exists
     const checkQuery = "SELECT username FROM users WHERE username = ?";
     connection.query(checkQuery, [username], (checkErr, checkResults) => {
       if (checkErr) {
@@ -175,7 +180,7 @@ app.post("/register", (req, res) => {
         return res.status(409).json({ error: "User already exists" });
       }
   
-      // Generate a 4-character salt (using 2 random bytes converted to hex)
+      // Generate the salt
       const saltStr = crypto.randomBytes(2).toString("hex");
   
       // Hash the password concatenated with salt and PEPPER
@@ -197,7 +202,6 @@ app.post("/register", (req, res) => {
       });
     });
 });
-
 
 app.listen(PORT, HOST);
 console.log(`Running on http://${HOST}:${PORT}`);

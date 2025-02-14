@@ -12,6 +12,15 @@ CREATE TABLE users (
 ALTER TABLE users ADD role ENUM('admin', 'user') NOT NULL DEFAULT 'user';
 
 
+CREATE TABLE logs (
+    log_id       VARCHAR(255) NOT NULL,
+    log_user VARCHAR(255) NOT NULL,
+    log_timestamp     VARCHAR(255) NOT NULL,
+    log_description     VARCHAR(1023) NOT NULL,
+    log_success  VARCHAR(255) NOT NULL,
+    PRIMARY KEY (log_id)
+);
+
 INSERT INTO users (username, salt, role, password, email)
 VALUES(
     "user",
@@ -31,15 +40,3 @@ VALUES(
 );
 
 UPDATE users SET role = 'admin' WHERE username = 'user';
-
--- First, enable the UUID extension (if not already enabled)
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
--- Create the logs table
-CREATE TABLE logs (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),  -- Unique ID using UUID v4
-    username VARCHAR(255) NOT NULL,                   -- Who (username)
-    log_time TIMESTAMPTZ NOT NULL DEFAULT now(),       -- When (human readable datetime)
-    data_access VARCHAR(255) NOT NULL,                -- What (type of data attempted to access)
-    success BOOLEAN NOT NULL                          -- Success (true if the action succeeded)
-);
